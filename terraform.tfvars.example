@@ -1,0 +1,7 @@
+public_key = "ssh-rsa som/key\ch@ract3rs me@me.com"
+aws_region = "eu-west-1"
+concourse_password = "p@55w0rd"
+postgres_pwd = "p@55w0rd"
+concourse_username = "user"
+aws_route_zone = "myfancydomain.com."
+aws_route53_record_domain = "concourse.myfancydomain.com"

@@ -1,0 +1,90 @@
+[
+  {
+    "name": "keys",
+    "image": "mtranter/concourse-keys:5.1",
+    "cpu": 5,
+    "memory": 256,
+    "essential": false,
+    "mountPoints": [{
+      "sourceVolume": "${keys_volume}",
+      "containerPath": "/state",
+      "readOnly": false
+    }]
+  },
+  {
+    "name": "concourse-db",
+    "image": "postgres:9.5",
+    "cpu": 10,
+    "memory": 256,
+    "essential": true,
+    "environment" : [
+        { "name" : "POSTGRES_DB", "value" : "concourse" },
+        { "name" : "POSTGRES_USER", "value" : "concourse" },
+        { "name" : "POSTGRES_PASSWORD", "value" : "${postgres_pwd}" },
+        { "name" : "PGDATA", "value" : "/state/postgres/pgdata" }
+    ],
+    "volumesFrom": [
+        {
+          "sourceContainer": "keys",
+          "readOnly": false
+        }
+      ]
+  },
+  {
+    "name": "concourse-web",
+    "image": "concourse/concourse",
+    "command": ["web"],
+    "cpu": 10,
+    "memory": 256,
+    "essential": true,
+    "links": ["concourse-db:concourse-db"],
+    "portMappings": [
+      {
+        "containerPort": 8080,
+        "hostPort": ${concourse_web_port}
+      }
+    ],
+    "environment" : [
+        { "name" : "CONCOURSE_BASIC_AUTH_USERNAME", "value" : "${concourse_username}" },
+        { "name" : "CONCOURSE_BASIC_AUTH_PASSWORD", "value" : "${concourse_password}" },
+        { "name" : "CONCOURSE_EXTERNAL_URL", "value" : "${concourse_external_url}" },
+        { "name" : "CONCOURSE_POSTGRES_DATA_SOURCE", "value" : "postgres://concourse:${postgres_pwd}@concourse-db:5432/concourse?sslmode=disable" },
+        { "name" : "CONCOURSE_SESSION_SIGNING_KEY", "value" : "/state/keys/web/session_signing_key" },
+        { "name" : "CONCOURSE_TSA_HOST_KEY", "value" : "/state/keys/web/tsa_host_key" },
+        { "name" : "CONCOURSE_TSA_AUTHORIZED_KEYS", "value" : "/state/keys/web/authorized_worker_keys" }
+    ],
+    "volumesFrom": [
+        {
+          "sourceContainer": "keys",
+          "readOnly": false
+        }
+      ]
+  },
+  {
+    "name": "concourse-worker-1",
+    "image": "concourse/concourse",
+    "links": ["concourse-web:concourse-web"],
+    "privileged": true,
+    "command": ["worker"],
+    "cpu": 10,
+    "memory": 512,
+    "essential": true,
+    "environment" : [
+        { "name" : "CONCOURSE_TSA_HOST", "value" : "concourse-web" },
+        { "name" : "CONCOURSE_GARDEN_ADDRESS", "value" : "concourse-worker-1" },
+        { "name" : "CONCOURSE_BAGGAGECLAIM_ADDRESS", "value" : "concourse-worker-1" },
+        { "name" : "CONCOURSE_GARDEN_FORWARD_ADDRESS", "value" : "concourse-worker-1" },
+        { "name" : "CONCOURSE_BAGGAGECLAIM_FORWARD_ADDRESS", "value" : "concourse-worker-1" },
+        { "name" : "CONCOURSE_GARDEN_DNS_SERVER", "value" : "8.8.8.8" },
+        { "name" : "CONCOURSE_TSA_PUBLIC_KEY", "value" : "/state/keys/worker/tsa_host_key.pub" },
+        { "name" : "CONCOURSE_TSA_WORKER_PRIVATE_KEY", "value" : "/state/keys/worker/worker_key" }
+    ],
+    "dns": ["8.8.8.8", "8.8.4.4"],
+    "volumesFrom": [
+        {
+          "sourceContainer": "keys",
+          "readOnly": false
+        }
+      ]
+  }
+]
